@@ -50,7 +50,7 @@ write_codex_chatgpt() {
 }
 
 write_claude() {
-  local email=$1 account_uuid=$2 suffix=$3 org=${4:-Example}
+  local email=$1 account_uuid=$2 suffix=$3 org=${4:-Example} org_uuid=${5:-}
   jq -n --arg suffix "$suffix" '{
     claudeAiOauth: {
       accessToken: ("access-" + $suffix),
@@ -60,13 +60,14 @@ write_claude() {
     },
     mcpOAuth: {example: {accessToken: "mcp-token"}}
   }' >"$claude_home/.credentials.json"
-  jq -n --arg email "$email" --arg uuid "$account_uuid" --arg org "$org" '{
+  jq -n --arg email "$email" --arg uuid "$account_uuid" --arg org "$org" \
+    --arg org_uuid "$org_uuid" '{
     theme: "dark",
-    oauthAccount: {
+    oauthAccount: ({
       emailAddress: $email,
       accountUuid: $uuid,
       organizationName: $org
-    }
+    } + (if $org_uuid == "" then {} else {organizationUuid: $org_uuid} end))
   }' >"$claude_home/.claude.json"
 }
 
@@ -229,6 +230,54 @@ helper remove claude "$first_claude" >/dev/null
 check jq -e --arg id "$first_claude" '[.accounts[] | select(.id == $id)] | length == 0' \
   "$switcher_dir/claude-accounts.json" >/dev/null
 check test ! -e "$first_claude_home"
+
+# Two seats on one email share an email address and an accountUuid, so only the
+# organization separates them. Each seat is saved and refreshed on its own.
+reset_fixture claude-same-email-seats
+write_claude seats@example.com uuid-one-person personal 'Personal' org-personal
+helper import-current claude Personal >/dev/null
+write_claude seats@example.com uuid-one-person team 'FITec Labs' org-team
+helper import-current claude Team >/dev/null
+check jq -e '.accounts | length == 2' "$switcher_dir/claude-accounts.json" >/dev/null
+check jq -e '[.accounts[].credentials.refreshToken] | sort == ["refresh-personal","refresh-team"]' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
+check jq -e '[.accounts[] | select(.name == "Personal")] | length == 1' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
+
+# Re-importing a seat refreshes that seat alone and never forks a third entry.
+write_claude seats@example.com uuid-one-person personal-rotated 'Personal' org-personal
+helper import-current claude >/dev/null
+check jq -e '.accounts | length == 2' "$switcher_dir/claude-accounts.json" >/dev/null
+check jq -e '.accounts[] | select(.name == "Personal") |
+  .credentials.refreshToken == "refresh-personal-rotated"' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
+check jq -e '.accounts[] | select(.name == "Team") |
+  .credentials.refreshToken == "refresh-team"' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
+
+# Each seat keeps a private home, so neither can read the other's credentials.
+personal_seat=$(jq -r '.accounts[] | select(.name == "Personal").id' \
+  "$switcher_dir/claude-accounts.json")
+team_seat=$(jq -r '.accounts[] | select(.name == "Team").id' \
+  "$switcher_dir/claude-accounts.json")
+check test "$personal_seat" != "$team_seat"
+check jq -e '.claudeAiOauth.refreshToken == "refresh-personal-rotated"' \
+  "$switcher_dir/homes/claude/$personal_seat/.credentials.json" >/dev/null
+check jq -e '.claudeAiOauth.refreshToken == "refresh-team"' \
+  "$switcher_dir/homes/claude/$team_seat/.credentials.json" >/dev/null
+
+# A store written before organizations were recorded still matches on identity
+# alone, so an existing account is refreshed rather than duplicated.
+reset_fixture claude-legacy-store
+write_claude legacy@example.com uuid-legacy legacy 'Legacy'
+helper import-current claude Legacy >/dev/null
+check jq -e '.accounts[0].oauth_account | has("organizationUuid") == false' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
+write_claude legacy@example.com uuid-legacy legacy-rotated 'Legacy' org-legacy
+helper import-current claude >/dev/null
+check jq -e '.accounts | length == 1' "$switcher_dir/claude-accounts.json" >/dev/null
+check jq -e '.accounts[0].credentials.refreshToken == "refresh-legacy-rotated"' \
+  "$switcher_dir/claude-accounts.json" >/dev/null
 
 # The account matching Claude's original shared profile adopts that profile's
 # resumable history. Other accounts keep independent histories.

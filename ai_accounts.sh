@@ -312,15 +312,22 @@ codex_match_index() {
 claude_match_index() {
   local candidate=$1
   printf '%s' "$STORE_JSON" | jq -r --slurpfile candidate <(printf '%s\n' "$candidate") '
+    # Two seats on one email share an accountUuid and an emailAddress, so the
+    # organization is what separates them. Compare it only when both sides know
+    # it, so accounts saved before it was recorded still match on identity alone.
+    def org_conflict($a; $b): ($a // "") != "" and ($b // "") != "" and $a != $b;
     ($candidate[0]) as $c |
     [.accounts | to_entries[] | select(
-      if ($c.oauth_account.accountUuid // "") != "" then
-        .value.oauth_account.accountUuid == $c.oauth_account.accountUuid
-      elif ($c.email // "") != "" then
-        ((.value.email // "") | ascii_downcase) == (($c.email // "") | ascii_downcase)
-      else
-        .value.credentials.refreshToken == $c.credentials.refreshToken
-      end
+      (org_conflict(.value.oauth_account.organizationUuid; $c.oauth_account.organizationUuid) | not)
+      and (
+        if ($c.oauth_account.accountUuid // "") != "" then
+          .value.oauth_account.accountUuid == $c.oauth_account.accountUuid
+        elif ($c.email // "") != "" then
+          ((.value.email // "") | ascii_downcase) == (($c.email // "") | ascii_downcase)
+        else
+          .value.credentials.refreshToken == $c.credentials.refreshToken
+        end
+      )
     )] | first | (.key // -1)
   '
 }
@@ -559,9 +566,16 @@ shared_claude_state_path() {
 
 claude_account_owns_shared_history() {
   local account=$1 state_path state account_uuid shared_uuid account_email shared_email
+  local account_org shared_org
   state_path=$(shared_claude_state_path)
   [[ -f $state_path && ! -L $state_path ]] || return 1
   state=$(jq -c 'if type == "object" then . else {} end' "$state_path" 2>/dev/null || printf '{}')
+  # Only the seat the shared profile was logged into owns its history. Seats
+  # sharing an email are told apart by organization, so when both sides record
+  # one it must agree before any identity check can claim ownership.
+  account_org=$(printf '%s' "$account" | jq -r '.oauth_account.organizationUuid // empty')
+  shared_org=$(printf '%s' "$state" | jq -r '.oauthAccount.organizationUuid // empty')
+  if [[ -n $account_org && -n $shared_org && $account_org != "$shared_org" ]]; then return 1; fi
   account_uuid=$(printf '%s' "$account" | jq -r '.oauth_account.accountUuid // empty')
   shared_uuid=$(printf '%s' "$state" | jq -r '.oauthAccount.accountUuid // empty')
   if [[ -n $account_uuid && -n $shared_uuid ]]; then [[ $account_uuid == "$shared_uuid" ]]; return; fi

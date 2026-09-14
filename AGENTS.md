@@ -9,6 +9,10 @@ This repository is the Omarchy Quattro plugin
   stores.
 - Keep the Codex and Claude stores separate; the same email can be saved for
   both providers.
+- A Claude account is identified by its organization together with its
+  `accountUuid` or email, because seats sharing an email differ only by
+  organization. Compare the organization only when both sides record one, so
+  stores written before it was saved keep matching.
 - Adding an account must use an isolated `CODEX_HOME` or
   `CLAUDE_CONFIG_DIR` and must not log out or alter the live login.
 - Each saved account has a stable private provider home. Selection must never

@@ -18,6 +18,9 @@ and Claude Code accounts.
   account, while honoring an explicitly set provider home.
 - Lets existing sessions keep the account they started with while other
   accounts run alongside them.
+- Saves several Claude seats that share one email address, such as a personal
+  subscription and a team seat, as separate accounts told apart by their
+  organization.
 - Keeps the original Claude profile's existing prompt and resume history with
   that account, while new Claude accounts retain independent histories.
 - Retains credentials refreshed inside each account home and seeds Claude
