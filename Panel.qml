@@ -153,26 +153,50 @@ Panel {
           width: parent.width
           spacing: Style.space(12)
 
-          PanelHero {
+          Item {
+            id: header
             width: parent.width
-            title: root.service
-              ? "Claude · " + root.service.activeName
-              : "Claude accounts"
-            meta: !root.service ? "Service unavailable"
-              : (root.service.runningCount > 0
-                ? root.service.runningCount + " active Claude session"
-                  + (root.service.runningCount === 1 ? "" : "s")
-                : root.service.accounts.length + " saved account"
-                  + (root.service.accounts.length === 1 ? "" : "s"))
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            iconComponent: Component {
-              Text {
-                textFormat: Text.PlainText
-                text: "󱚣"
-                color: root.foreground
-                font.family: root.fontFamily
-                font.pixelSize: Style.font.display
+            implicitHeight: hero.implicitHeight
+            // Exposed for the hero's trailingControl, whose `root` resolves to
+            // PanelHero (not this Panel) — reach panel state via `header`.
+            readonly property bool configureOpen: root.configureOpen
+            function toggleConfigure() { root.configureOpen = !root.configureOpen }
+
+            PanelHero {
+              id: hero
+              width: parent.width
+              title: root.service
+                ? "Claude · " + root.service.activeName
+                : "Claude accounts"
+              meta: !root.service ? "Service unavailable"
+                : (root.service.runningCount > 0
+                  ? root.service.runningCount + " active Claude session"
+                    + (root.service.runningCount === 1 ? "" : "s")
+                  : root.service.accounts.length + " saved account"
+                    + (root.service.accounts.length === 1 ? "" : "s"))
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              iconComponent: Component {
+                Text {
+                  textFormat: Text.PlainText
+                  text: "󱚣"
+                  color: root.foreground
+                  font.family: root.fontFamily
+                  font.pixelSize: Style.font.display
+                }
+              }
+
+              trailingControl: Component {
+                PanelActionButton {
+                  iconText: "󰒓"
+                  tooltipText: header.configureOpen ? "Hide settings" : "Settings"
+                  foreground: hero.foreground
+                  fontFamily: hero.fontFamily
+                  fontSize: Style.font.iconSmall
+                  focusable: true
+                  bordered: header.configureOpen
+                  onClicked: header.toggleConfigure()
+                }
               }
             }
           }
@@ -260,21 +284,12 @@ Panel {
             }
           }
 
-          PanelSeparator { width: parent.width; foreground: root.foreground }
-
-          Button {
-            width: parent.width
-            text: root.configureOpen ? "Configure ▴" : "Configure ▾"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            focusable: true
-            onClicked: root.configureOpen = !root.configureOpen
-          }
-
           Column {
             width: parent.width
             spacing: Style.space(12)
             visible: root.configureOpen
+
+            PanelSeparator { width: parent.width; foreground: root.foreground }
 
             PanelSectionHeader {
               width: parent.width
