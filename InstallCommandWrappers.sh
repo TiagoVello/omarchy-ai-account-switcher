@@ -34,22 +34,22 @@ ensure_directory() {
 }
 
 install_wrapper() {
-  local provider=$1 target backup temporary
-  target="$bin_dir/$provider"
-  backup="$backup_dir/$provider"
+  local target backup temporary
+  target="$bin_dir/claude"
+  backup="$backup_dir/claude"
   if [[ ( -e $target || -L $target ) ]] && ! is_our_wrapper "$target" && [[ ! -e $backup && ! -L $backup ]]; then
     cp -a -- "$target" "$backup"
   fi
-  temporary=$(mktemp "$bin_dir/.${provider}.ai-switcher.XXXXXX")
+  temporary=$(mktemp "$bin_dir/.claude.ai-switcher.XXXXXX")
   cp -- "$wrapper_source" "$temporary"
   chmod 755 -- "$temporary"
   mv -fT -- "$temporary" "$target"
 }
 
 preflight_install() {
-  local provider=$1 target backup
-  target="$bin_dir/$provider"
-  backup="$backup_dir/$provider"
+  local target backup
+  target="$bin_dir/claude"
+  backup="$backup_dir/claude"
   [[ ! -d $target ]] || fail "Refusing to replace directory: $target"
   if [[ ( -e $target || -L $target ) ]] && ! is_our_wrapper "$target" &&
     [[ -e $backup || -L $backup ]]; then
@@ -66,18 +66,16 @@ preflight_mise_fragment() {
 }
 
 install_mise_fragment() {
-  local temporary codex_command claude_command
+  local temporary claude_command
   if [[ ( -e $mise_fragment || -L $mise_fragment ) ]] && ! is_our_mise_fragment "$mise_fragment" &&
     [[ ! -e $mise_backup && ! -L $mise_backup ]]; then
     cp -a -- "$mise_fragment" "$mise_backup"
   fi
-  printf -v codex_command '%q' "$bin_dir/codex"
   printf -v claude_command '%q' "$bin_dir/claude"
   temporary=$(mktemp "$mise_conf_dir/.omarchy-ai-account-switcher.XXXXXX")
   {
     printf '# %s\n' "$mise_marker"
     printf '[shell_alias]\n'
-    printf 'codex = %s\n' "$(jq -cn --arg value "$codex_command" '$value')"
     printf 'claude = %s\n' "$(jq -cn --arg value "$claude_command" '$value')"
   } >"$temporary"
   chmod 600 -- "$temporary"
@@ -97,9 +95,9 @@ remove_mise_fragment() {
 }
 
 remove_wrapper() {
-  local provider=$1 target backup
-  target="$bin_dir/$provider"
-  backup="$backup_dir/$provider"
+  local target backup
+  target="$bin_dir/claude"
+  backup="$backup_dir/claude"
   if [[ -e $backup || -L $backup ]]; then
     if [[ -e $target || -L $target ]]; then
       is_our_wrapper "$target" || fail "Refusing to replace a changed command: $target"
@@ -119,19 +117,16 @@ ensure_directory "$mise_conf_dir" 700
 
 case ${1:-install} in
   install)
-    preflight_install codex
-    preflight_install claude
+    preflight_install
     preflight_mise_fragment
-    install_wrapper codex
-    install_wrapper claude
+    install_wrapper
     install_mise_fragment
-    jq -cn '{ok: true, message: "Terminal commands now follow the selected accounts"}'
+    jq -cn '{ok: true, message: "The claude command now follows the selected account"}'
     ;;
   remove)
     remove_mise_fragment
-    remove_wrapper codex
-    remove_wrapper claude
-    jq -cn '{ok: true, message: "Restored the previous terminal commands"}'
+    remove_wrapper
+    jq -cn '{ok: true, message: "Restored the previous claude command"}'
     ;;
   *) fail "Usage: InstallCommandWrappers.sh [install|remove]" ;;
 esac

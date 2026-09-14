@@ -154,11 +154,11 @@ Panel {
           PanelHero {
             width: parent.width
             title: root.service
-              ? root.service.providerLabel + " · " + root.service.activeName
-              : "AI accounts"
+              ? "Claude · " + root.service.activeName
+              : "Claude accounts"
             meta: !root.service ? "Service unavailable"
               : (root.service.runningCount > 0
-                ? root.service.runningCount + " active " + root.service.providerLabel + " session"
+                ? root.service.runningCount + " active Claude session"
                   + (root.service.runningCount === 1 ? "" : "s")
                 : root.service.accounts.length + " saved account"
                   + (root.service.accounts.length === 1 ? "" : "s"))
@@ -172,23 +172,6 @@ Panel {
                 font.family: root.fontFamily
                 font.pixelSize: Style.font.display
               }
-            }
-          }
-
-          ButtonGroup {
-            width: parent.width
-            value: root.service ? root.service.provider : "codex"
-            options: [
-              { value: "codex", label: "Codex" },
-              { value: "claude", label: "Claude" }
-            ]
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            focusable: false
-            onChanged: function(value) {
-              root.cursorIndex = 0
-              root.cursorActive = false
-              if (root.service) root.service.selectProvider(value)
             }
           }
 
@@ -246,8 +229,8 @@ Panel {
             width: parent.width
             text: !root.service ? ""
               : (root.service.hasCurrentLogin
-                ? "Save the current " + root.service.providerLabel + " login below to start."
-                : "Log in to " + root.service.providerLabel + ", then save that login here.")
+                ? "Save the current Claude login below to start."
+                : "Log in to Claude, then save that login here.")
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.body
@@ -279,7 +262,7 @@ Panel {
 
           PanelSectionHeader {
             width: parent.width
-            text: "SAVE CURRENT " + (root.service ? root.service.providerLabel.toUpperCase() : "AI") + " LOGIN"
+            text: "SAVE CURRENT CLAUDE LOGIN"
             foreground: root.foreground
             fontFamily: root.fontFamily
           }
@@ -319,8 +302,8 @@ Panel {
           Button {
             width: parent.width
             text: root.service && root.service.activeAccountId !== ""
-              ? "Open " + root.service.providerLabel + " as " + root.service.activeName
-              : "Select a saved account to open " + (root.service ? root.service.providerLabel : "AI")
+              ? "Open Claude as " + root.service.activeName
+              : "Select a saved account to open Claude"
             foreground: root.foreground
             fontFamily: root.fontFamily
             focusable: true
@@ -346,7 +329,7 @@ Panel {
           Button {
             visible: root.service && !root.service.commandWrappersEnabled
             width: parent.width
-            text: "Make plain codex and claude commands follow selection"
+            text: "Make the plain claude command follow selection"
             foreground: root.foreground
             fontFamily: root.fontFamily
             focusable: true
@@ -358,7 +341,7 @@ Panel {
             textFormat: Text.PlainText
             visible: root.service && root.service.commandWrappersEnabled
             width: parent.width
-            text: "New plain codex and claude processes also use the selected accounts."
+            text: "New plain claude processes also use the selected account."
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -368,7 +351,7 @@ Panel {
 
           Button {
             width: parent.width
-            text: "Add another " + (root.service ? root.service.providerLabel : "AI") + " account"
+            text: "Add another Claude account"
             foreground: root.foreground
             fontFamily: root.fontFamily
             focusable: true
@@ -382,8 +365,7 @@ Panel {
           Text {
             textFormat: Text.PlainText
             width: parent.width
-            text: "Runs an isolated official " + (root.service ? root.service.providerLabel : "AI")
-              + " login without disturbing active sessions."
+            text: "Runs an isolated official Claude login without disturbing active sessions."
             color: root.dim
             font.family: root.fontFamily
             font.pixelSize: Style.font.caption
@@ -467,7 +449,6 @@ Panel {
             if (!accountRow.account) return ""
             var pieces = []
             if (accountRow.account.email) pieces.push(accountRow.account.email)
-            if (accountRow.account.plan_type) pieces.push(String(accountRow.account.plan_type).toUpperCase())
             if (accountRow.account.subscription_type)
               pieces.push(String(accountRow.account.subscription_type).toUpperCase())
             if (accountRow.account.org_name) pieces.push(String(accountRow.account.org_name))

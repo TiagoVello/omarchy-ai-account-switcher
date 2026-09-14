@@ -6,12 +6,9 @@ Item {
   id: root
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string codexStorePath: home + "/.config/omarchy/ai-account-switcher/codex-accounts.json"
   readonly property string claudeStorePath: home + "/.config/omarchy/ai-account-switcher/claude-accounts.json"
   readonly property string helperPath: decodeURIComponent(
     String(Qt.resolvedUrl("ai_accounts.sh")).replace(/^file:\/\//, ""))
-  readonly property string codexSetupPath: decodeURIComponent(
-    String(Qt.resolvedUrl("AddCodexAccount.sh")).replace(/^file:\/\//, ""))
   readonly property string claudeSetupPath: decodeURIComponent(
     String(Qt.resolvedUrl("AddClaudeAccount.sh")).replace(/^file:\/\//, ""))
   readonly property string launchPath: decodeURIComponent(
@@ -19,9 +16,6 @@ Item {
   readonly property string wrapperSetupPath: decodeURIComponent(
     String(Qt.resolvedUrl("InstallCommandWrappers.sh")).replace(/^file:\/\//, ""))
 
-  property string provider: "codex"
-  readonly property string providerLabel: provider === "claude" ? "Claude" : "Codex"
-  property var providerStatuses: ({})
   property var accounts: []
   property string activeAccountId: ""
   property string activeName: "No saved account"
@@ -40,7 +34,6 @@ Item {
   property var usageByAccount: ({})
   property var usageQueue: []
   property int usageQueueIndex: 0
-  property string usageProvider: ""
   property string usageAccountId: ""
   property double usageRefreshedAt: 0
   property bool usageRefreshRequested: false
@@ -61,10 +54,8 @@ Item {
       id: root.boundedText(value.id, "", 128),
       name: root.boundedText(value.name, "Account", 120),
       email: root.boundedText(value.email, "", 254),
-      plan_type: root.boundedText(value.plan_type, "", 80),
       subscription_type: root.boundedText(value.subscription_type, "", 80),
       org_name: root.boundedText(value.org_name, "", 120),
-      auth_mode: root.boundedText(value.auth_mode, "", 40),
       is_active: value.is_active === true,
       is_current: value.is_current === true,
       last_used_at: root.boundedText(value.last_used_at, "", 80)
@@ -94,13 +85,9 @@ Item {
     }
   }
 
-  function usageKey(providerName, accountId) {
-    return String(providerName || "") + ":" + String(accountId || "")
-  }
-
   function usageFor(accountId) {
-    var key = root.usageKey(root.provider, accountId)
-    return root.usageByAccount[key] || root.displayUsage({ loading: root.usageBusy })
+    return root.usageByAccount[String(accountId || "")]
+      || root.displayUsage({ loading: root.usageBusy })
   }
 
   function parseResult(text) {
@@ -112,8 +99,9 @@ Item {
     }
   }
 
-  function applyProviderStatus(payload) {
+  function applyStatus(payload) {
     payload = payload || {}
+    root.commandWrappersEnabled = payload.command_wrappers_enabled === true
     var receivedAccounts = Array.isArray(payload.accounts) ? payload.accounts : []
     root.accounts = receivedAccounts.map(function(account) { return root.displayAccount(account) })
     root.activeAccountId = root.boundedText(payload.active_account_id, "", 128)
@@ -131,24 +119,9 @@ Item {
       }
     }
     root.activeName = active ? root.boundedText(active.name, "Account", 120)
-      : (root.hasCurrentLogin ? "Unsaved login" : "No " + root.providerLabel + " login")
+      : (root.hasCurrentLogin ? "Unsaved login" : "No Claude login")
     if (payload.ok === false && !root.hasActionError)
       root.lastError = root.boundedText(payload.error, "Could not load accounts", 320)
-  }
-
-  function applyStatus(payload) {
-    root.providerStatuses = payload.providers || ({})
-    root.commandWrappersEnabled = payload.command_wrappers_enabled === true
-    root.applyProviderStatus(root.providerStatuses[root.provider])
-  }
-
-  function selectProvider(value) {
-    var next = value === "claude" ? "claude" : "codex"
-    root.provider = next
-    root.lastError = ""
-    root.hasActionError = false
-    root.lastAction = ""
-    root.applyProviderStatus(root.providerStatuses[next])
   }
 
   function refresh(forceUsage) {
@@ -166,18 +139,11 @@ Item {
 
     var queue = []
     var nextUsage = Object.assign({}, root.usageByAccount)
-    var providers = ["codex", "claude"]
-    for (var p = 0; p < providers.length; p++) {
-      var providerName = providers[p]
-      var status = root.providerStatuses[providerName] || {}
-      var providerAccounts = Array.isArray(status.accounts) ? status.accounts : []
-      for (var i = 0; i < providerAccounts.length; i++) {
-        var accountId = root.boundedText(providerAccounts[i].id, "", 128)
-        if (accountId === "") continue
-        queue.push({ provider: providerName, id: accountId })
-        var key = root.usageKey(providerName, accountId)
-        if (!nextUsage[key]) nextUsage[key] = root.displayUsage({ loading: true })
-      }
+    for (var i = 0; i < root.accounts.length; i++) {
+      var accountId = root.boundedText(root.accounts[i].id, "", 128)
+      if (accountId === "") continue
+      queue.push(accountId)
+      if (!nextUsage[accountId]) nextUsage[accountId] = root.displayUsage({ loading: true })
     }
     root.usageByAccount = nextUsage
     root.usageQueue = queue
@@ -197,12 +163,9 @@ Item {
       }
       return
     }
-    var item = root.usageQueue[root.usageQueueIndex]
+    root.usageAccountId = String(root.usageQueue[root.usageQueueIndex] || "")
     root.usageQueueIndex++
-    root.usageProvider = String(item.provider || "")
-    root.usageAccountId = String(item.id || "")
-    usageProcess.command = ["bash", root.helperPath, "usage",
-      root.usageProvider, root.usageAccountId]
+    usageProcess.command = ["bash", root.helperPath, "usage", root.usageAccountId]
     usageProcess.running = true
   }
 
@@ -219,19 +182,19 @@ Item {
 
   function switchAccount(accountId) {
     if (String(accountId || "") === "") return
-    runAction(["switch", root.provider, String(accountId)], String(accountId))
+    runAction(["switch", String(accountId)], String(accountId))
   }
 
   function importCurrent(name) {
-    runAction(["import-current", root.provider, String(name || "")], "")
+    runAction(["import-current", String(name || "")], "")
   }
 
   function renameAccount(accountId, name) {
-    runAction(["rename", root.provider, String(accountId), String(name || "")], "")
+    runAction(["rename", String(accountId), String(name || "")], "")
   }
 
   function removeAccount(accountId) {
-    runAction(["remove", root.provider, String(accountId)], "")
+    runAction(["remove", String(accountId)], "")
   }
 
   function addAnotherAccount() {
@@ -239,8 +202,7 @@ Item {
     root.lastError = ""
     root.hasActionError = false
     root.lastAction = ""
-    setupProcess.command = ["omarchy-launch-terminal", "bash",
-      root.provider === "claude" ? root.claudeSetupPath : root.codexSetupPath]
+    setupProcess.command = ["omarchy-launch-terminal", "bash", root.claudeSetupPath]
     setupProcess.running = true
   }
 
@@ -251,7 +213,7 @@ Item {
     root.lastAction = ""
     root.launching = true
     launchProcess.command = ["omarchy-launch-terminal", "bash", root.launchPath,
-      root.provider, root.activeAccountId]
+      root.activeAccountId]
     launchProcess.running = true
   }
 
@@ -290,7 +252,7 @@ Item {
     stderr: StdioCollector { id: usageError; waitForEnd: true }
     onExited: function(exitCode) {
       var payload = root.parseResult(usageOutput.text)
-      var key = root.usageKey(root.usageProvider, root.usageAccountId)
+      var key = root.usageAccountId
       var nextUsage = Object.assign({}, root.usageByAccount)
       if (exitCode === 0 && payload.ok === true) {
         nextUsage[key] = root.displayUsage(payload)
@@ -333,7 +295,7 @@ Item {
     onExited: function(exitCode) {
       root.launching = false
       if (exitCode !== 0) {
-        root.lastError = "Could not open the selected " + root.providerLabel + " account"
+        root.lastError = "Could not open the selected Claude account"
         root.hasActionError = true
       }
       refreshTimer.restart()
@@ -357,15 +319,6 @@ Item {
       }
       root.refresh()
     }
-  }
-
-  FileView {
-    path: root.codexStorePath
-    watchChanges: true
-    printErrors: false
-    onLoaded: root.refresh()
-    onFileChanged: reload()
-    onLoadFailed: root.refresh()
   }
 
   FileView {

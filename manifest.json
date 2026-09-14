@@ -1,11 +1,11 @@
 {
   "schemaVersion": 1,
   "id": "acrogenesis.ai-account-switcher",
-  "name": "AI Account Switcher",
+  "name": "Claude Account Switcher",
   "version": "0.4.0",
   "author": "acrogenesis",
   "license": "MIT",
-  "description": "Open isolated Codex and Claude Code accounts from the Omarchy bar without closing active sessions.",
+  "description": "Open isolated Claude Code accounts from the Omarchy bar without closing active sessions.",
   "kinds": [
     "service",
     "bar-widget"
@@ -15,8 +15,8 @@
     "barWidget": "BarWidget.qml"
   },
   "barWidget": {
-    "displayName": "AI accounts",
-    "description": "Switch the Codex CLI or Claude Code login used by new sessions.",
+    "displayName": "Claude accounts",
+    "description": "Switch the Claude Code login used by new sessions.",
     "category": "AI",
     "allowMultiple": false,
     "defaultSection": "right"

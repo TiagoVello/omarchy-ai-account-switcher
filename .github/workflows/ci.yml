@@ -16,15 +16,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install --yes jq ripgrep
       - name: Run account helper tests
         run: bash tests/test_accounts.sh
-      - name: Run add-account integration tests
-        run: |
-          bash tests/test_add_codex_account.sh
-          bash tests/test_add_claude_account.sh
+      - name: Run add-account integration test
+        run: bash tests/test_add_claude_account.sh
       - name: Run per-account launcher integration test
         run: bash tests/test_launch_account.sh
       - name: Run QML display safety test
         run: bash tests/test_qml_safety.sh
       - name: Validate shell scripts
-        run: bash -n ai_accounts.sh AddCodexAccount.sh AddClaudeAccount.sh LaunchAccount.sh CommandWrapper.sh InstallCommandWrappers.sh tests/*.sh
+        run: bash -n ai_accounts.sh AddClaudeAccount.sh LaunchAccount.sh CommandWrapper.sh InstallCommandWrappers.sh tests/*.sh
       - name: Validate manifest JSON
         run: jq -e . manifest.json >/dev/null

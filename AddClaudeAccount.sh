@@ -32,7 +32,7 @@ echo "AI Account Switcher · Claude"
 echo
 
 if [[ -f ${CLAUDE_CONFIG_DIR:-$HOME/.claude}/.credentials.json ]]; then
-  run_helper import-current claude
+  run_helper import-current
 fi
 
 login_home="$(mktemp -d)"
@@ -42,7 +42,7 @@ echo
 read -r -p "Name for the new Claude login (Enter uses its email): " new_name
 CLAUDE_CONFIG_DIR="$login_home" OMARCHY_AI_SOURCE_CLAUDE_CONFIG_DIR="$source_home" \
   OMARCHY_AI_SOURCE_CLAUDE_STATE="$source_state" \
-  run_helper import-current claude "$new_name" --inactive
+  run_helper import-current "$new_name" --inactive
 
 echo
 echo "The new Claude account is saved. Select and open it from the bar whenever you want."

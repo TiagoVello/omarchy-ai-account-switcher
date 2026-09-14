@@ -54,7 +54,7 @@ env \
   CLAUDE_CONFIG_DIR="$current_home" \
   OMARCHY_AI_SWITCHER_DIR="$switcher_dir" \
   FAKE_CLAUDE_LOG="$fake_log" \
-  bash "$project_dir/ai_accounts.sh" import-current claude >/dev/null
+  bash "$project_dir/ai_accounts.sh" import-current >/dev/null
 
 printf 'Second\n\n' | env \
   PATH="$fake_bin:$PATH" \

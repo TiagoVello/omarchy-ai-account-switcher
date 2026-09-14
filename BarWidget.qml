@@ -51,26 +51,18 @@ BarWidget {
     function hide(): void { root.close() }
     function toggle(): void { root.toggle() }
     function refresh(): void { if (root.ready) root.accountService.refresh() }
-    function selectProvider(provider: string): string {
+    function saveCurrent(name: string): string {
       if (!root.ready) return "service unavailable"
-      root.accountService.selectProvider(provider)
-      return "ok"
-    }
-    function saveCurrent(provider: string, name: string): string {
-      if (!root.ready) return "service unavailable"
-      root.accountService.selectProvider(provider)
       root.accountService.importCurrent(name)
       return "started"
     }
-    function switchAccount(provider: string, accountId: string): string {
+    function switchAccount(accountId: string): string {
       if (!root.ready) return "service unavailable"
-      root.accountService.selectProvider(provider)
       root.accountService.switchAccount(accountId)
       return "started"
     }
-    function launchSelected(provider: string): string {
+    function launchSelected(): string {
       if (!root.ready) return "service unavailable"
-      root.accountService.selectProvider(provider)
       root.accountService.launchSelectedAccount()
       return "started"
     }
@@ -81,8 +73,7 @@ BarWidget {
     }
     function status(): string {
       if (!root.ready) return "service unavailable"
-      return "provider=" + root.accountService.provider
-        + " active=\"" + root.accountService.activeName + "\""
+      return "active=\"" + root.accountService.activeName + "\""
         + " accounts=" + root.accountService.accounts.length
         + " canSwitch=" + root.accountService.canSwitch
         + (root.accountService.lastError
@@ -98,7 +89,7 @@ BarWidget {
     dimmed: !root.ready || root.accountService.accounts.length === 0
     active: root.ready && root.accountService.lastError !== ""
     tooltipText: !root.ready ? "AI accounts unavailable"
-      : root.accountService.providerLabel + " · " + root.accountService.activeName
+      : "Claude · " + root.accountService.activeName
     onPressed: function(code) {
       if (code === Qt.MiddleButton && root.ready) root.accountService.refresh()
       else root.toggle()
