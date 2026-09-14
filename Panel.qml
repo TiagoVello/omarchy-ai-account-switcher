@@ -20,11 +20,13 @@ Panel {
   readonly property string fontFamily: bar ? bar.fontFamily : Style.font.family
   property int cursorIndex: 0
   property bool cursorActive: false
+  property bool configureOpen: false
 
   function open() {
     if (service) service.refresh(true)
     cursorIndex = 0
     cursorActive = false
+    configureOpen = false
     controller.show()
   }
 
@@ -260,128 +262,143 @@ Panel {
 
           PanelSeparator { width: parent.width; foreground: root.foreground }
 
-          PanelSectionHeader {
+          Button {
             width: parent.width
-            text: "SAVE CURRENT CLAUDE LOGIN"
+            text: root.configureOpen ? "Configure ▴" : "Configure ▾"
             foreground: root.foreground
             fontFamily: root.fontFamily
+            focusable: true
+            onClicked: root.configureOpen = !root.configureOpen
           }
 
-          Row {
+          Column {
             width: parent.width
-            spacing: Style.space(8)
+            spacing: Style.space(12)
+            visible: root.configureOpen
 
-            TextField {
-              id: nameField
-              width: parent.width - saveButton.width - parent.spacing
-              placeholderText: root.service && root.service.suggestedName
-                ? root.service.suggestedName : "Account name (optional)"
-              maximumLength: 120
+            PanelSectionHeader {
+              width: parent.width
+              text: "SAVE CURRENT CLAUDE LOGIN"
               foreground: root.foreground
-              font.family: root.fontFamily
-              enabled: root.service && root.service.hasCurrentLogin && !root.service.busy
-              onAccepted: saveButton.clicked()
+              fontFamily: root.fontFamily
+            }
+
+            Row {
+              width: parent.width
+              spacing: Style.space(8)
+
+              TextField {
+                id: nameField
+                width: parent.width - saveButton.width - parent.spacing
+                placeholderText: root.service && root.service.suggestedName
+                  ? root.service.suggestedName : "Account name (optional)"
+                maximumLength: 120
+                foreground: root.foreground
+                font.family: root.fontFamily
+                enabled: root.service && root.service.hasCurrentLogin && !root.service.busy
+                onAccepted: saveButton.clicked()
+              }
+
+              Button {
+                id: saveButton
+                text: root.service && root.service.currentSaved ? "Update" : "Save"
+                foreground: root.foreground
+                fontFamily: root.fontFamily
+                focusable: true
+                enabled: root.service && root.service.hasCurrentLogin && !root.service.busy
+                onClicked: {
+                  if (!root.service) return
+                  root.service.importCurrent(nameField.text)
+                  nameField.text = ""
+                  keyCatcher.forceActiveFocus()
+                }
+              }
             }
 
             Button {
-              id: saveButton
-              text: root.service && root.service.currentSaved ? "Update" : "Save"
+              width: parent.width
+              text: root.service && root.service.activeAccountId !== ""
+                ? "Open Claude as " + root.service.activeName
+                : "Select a saved account to open Claude"
               foreground: root.foreground
               fontFamily: root.fontFamily
               focusable: true
-              enabled: root.service && root.service.hasCurrentLogin && !root.service.busy
+              enabled: root.service && root.service.activeAccountId !== ""
+                && !root.service.busy && !root.service.launching
               onClicked: {
-                if (!root.service) return
-                root.service.importCurrent(nameField.text)
-                nameField.text = ""
-                keyCatcher.forceActiveFocus()
+                root.close()
+                root.service.launchSelectedAccount()
               }
             }
-          }
 
-          Button {
-            width: parent.width
-            text: root.service && root.service.activeAccountId !== ""
-              ? "Open Claude as " + root.service.activeName
-              : "Select a saved account to open Claude"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            focusable: true
-            enabled: root.service && root.service.activeAccountId !== ""
-              && !root.service.busy && !root.service.launching
-            onClicked: {
-              root.close()
-              root.service.launchSelectedAccount()
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width
+              text: "Each launched session keeps this account, even after you select another one."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.WordWrap
             }
-          }
 
-          Text {
-            textFormat: Text.PlainText
-            width: parent.width
-            text: "Each launched session keeps this account, even after you select another one."
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-          }
-
-          Button {
-            visible: root.service && !root.service.commandWrappersEnabled
-            width: parent.width
-            text: "Make the plain claude command follow selection"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            focusable: true
-            enabled: root.service && !root.service.busy
-            onClicked: root.service.enableCommandSwitching()
-          }
-
-          Text {
-            textFormat: Text.PlainText
-            visible: root.service && root.service.commandWrappersEnabled
-            width: parent.width
-            text: "New plain claude processes also use the selected account."
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-          }
-
-          Button {
-            width: parent.width
-            text: "Add another Claude account"
-            foreground: root.foreground
-            fontFamily: root.fontFamily
-            focusable: true
-            enabled: root.service && !root.service.busy
-            onClicked: {
-              root.close()
-              root.service.addAnotherAccount()
+            Button {
+              visible: root.service && !root.service.commandWrappersEnabled
+              width: parent.width
+              text: "Make the plain claude command follow selection"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              focusable: true
+              enabled: root.service && !root.service.busy
+              onClicked: root.service.enableCommandSwitching()
             }
-          }
 
-          Text {
-            textFormat: Text.PlainText
-            width: parent.width
-            text: "Runs an isolated official Claude login without disturbing active sessions."
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
-          }
+            Text {
+              textFormat: Text.PlainText
+              visible: root.service && root.service.commandWrappersEnabled
+              width: parent.width
+              text: "New plain claude processes also use the selected account."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.WordWrap
+            }
 
-          Text {
-            textFormat: Text.PlainText
-            width: parent.width
-            text: "Sessions opened from this panel use the selected login. Middle-click the bar icon to refresh."
-            color: root.dim
-            font.family: root.fontFamily
-            font.pixelSize: Style.font.caption
-            horizontalAlignment: Text.AlignHCenter
-            wrapMode: Text.WordWrap
+            Button {
+              width: parent.width
+              text: "Add another Claude account"
+              foreground: root.foreground
+              fontFamily: root.fontFamily
+              focusable: true
+              enabled: root.service && !root.service.busy
+              onClicked: {
+                root.close()
+                root.service.addAnotherAccount()
+              }
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width
+              text: "Runs an isolated official Claude login without disturbing active sessions."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.WordWrap
+            }
+
+            Text {
+              textFormat: Text.PlainText
+              width: parent.width
+              text: "Sessions opened from this panel use the selected login. Middle-click the bar icon to refresh."
+              color: root.dim
+              font.family: root.fontFamily
+              font.pixelSize: Style.font.caption
+              horizontalAlignment: Text.AlignHCenter
+              wrapMode: Text.WordWrap
+            }
           }
         }
       }
